@@ -63,8 +63,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.ancevt</groupId>
-            <artifactId>d3</artifactId>
+            <groupId>com.ancevt.d3</groupId>
+            <artifactId>d3-engine</artifactId>
             <version>0.0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>

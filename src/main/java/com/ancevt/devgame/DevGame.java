@@ -1,6 +1,7 @@
 package com.ancevt.devgame;
 
-import com.ancevt.onemore.engine.*;
+
+import com.ancevt.d3.engine.*;
 
 public class DevGame implements Game {
 
