@@ -1,25 +1,18 @@
 package com.ancevt.devgame;
 
+
 import com.ancevt.d3.engine.*;
 
-public class DevGame implements Application {
+public class DevGame_1 implements Game {
 
-
-    public static void main(String[] args) {
-        new Engine(new Config()).start(new DevGame());
-    }
-
-
-    private EngineContext ctx;
+    private static Engine engine;
 
     @Override
-    public void init(EngineContext ctx) {
-        this.ctx = ctx;
-
+    public void init() {
         // === создаём пол ===
         int groundTex = TextureLoader.loadTextureFromResources("texture/ground1.png");
         GameObject ground = createGround(200, groundTex); // плоскость 200x200
-        ctx.getEngine().objects.add(ground);
+        engine.objects.add(ground);
 
         // === создаём замки ===
         int count = 30;
@@ -52,7 +45,7 @@ public class DevGame implements Application {
         return new GameObject(mesh, textureId);
     }
 
-    private GameObject createCastle(String filename, float x, float y, float z) {
+    private static GameObject createCastle(String filename, float x, float y, float z) {
         OBJModel obj1 = OBJLoader.load("models/" + filename);
         int tex1 = (obj1.textureFile != null)
                 ? TextureLoader.loadTextureFromResources("models/" + obj1.textureFile)
@@ -60,17 +53,14 @@ public class DevGame implements Application {
 
         GameObject go1 = new MyGameObject(obj1.mesh, tex1);
         go1.setPosition(x, y, z);
-        ctx.getEngine().objects.add(go1);
+        engine.objects.add(go1);
         return go1;
     }
 
-    @Override
-    public void update() {
+    public static void main(String[] args) {
+        DevGame_1 gameApp = new DevGame_1();
 
-    }
-
-    @Override
-    public void shutdown() {
-
+        engine = new Engine(new Config());
+        engine.run(gameApp);
     }
 }
