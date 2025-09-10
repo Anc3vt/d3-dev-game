@@ -1,12 +1,27 @@
 package com.ancevt.devgame;
 
-import com.ancevt.d3.engine.*;
+import com.ancevt.d3.engine.asset.OBJLoader;
+import com.ancevt.d3.engine.asset.OBJModel;
+import com.ancevt.d3.engine.asset.TextureLoader;
+import com.ancevt.d3.engine.core.Application;
+import com.ancevt.d3.engine.core.LaunchConfig;
+import com.ancevt.d3.engine.core.Engine;
+import com.ancevt.d3.engine.core.EngineContext;
+import com.ancevt.d3.engine.scene.GameObject;
+import com.ancevt.d3.engine.scene.Mesh;
+import com.ancevt.d3.engine.scene.MyGameObject;
 
 public class DevGame implements Application {
 
 
     public static void main(String[] args) {
-        new Engine(new Config()).start(new DevGame());
+        new Engine(
+                LaunchConfig.builder()
+                        .width(2000)
+                        .height(1000)
+                        .title("D3 Dev")
+                        .build()
+        ).start(new DevGame());
     }
 
 
