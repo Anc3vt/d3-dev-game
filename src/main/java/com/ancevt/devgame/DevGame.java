@@ -10,7 +10,6 @@ import com.ancevt.d3.engine.core.LaunchConfig;
 import com.ancevt.d3.engine.render.ShaderProgram;
 import com.ancevt.d3.engine.scene.*;
 import com.ancevt.d3.engine.util.TextLoader;
-import org.w3c.dom.ls.LSOutput;
 
 import static org.lwjgl.opengl.GL20.glGetUniformLocation;
 import static org.lwjgl.opengl.GL20.glUniform1i;
@@ -35,9 +34,9 @@ public class DevGame implements Application {
     @Override
     public void init(EngineContext ctx) {
         this.ctx = ctx;
-
         AssetManager assetManager = ctx.getAssetManager();
 
+        // === Skybox ===
         String[] faces = {
                 "skybox/right.png",
                 "skybox/left.png",
@@ -57,72 +56,121 @@ public class DevGame implements Application {
         int loc = glGetUniformLocation(skyboxShader.getId(), "skybox");
         glUniform1i(loc, 0);
 
-        Skybox skybox = new Skybox(cubemapTex, skyboxShader);
+        Engine.skybox = new Skybox(cubemapTex, skyboxShader);
 
-        Engine.skybox = skybox;
-
-
-//        int cubeTex = assetManager.loadTexture("texture/wall.png", true);
-//        GameObjectNode cube = new GameObjectNode(MeshFactory.createTexturedCubeMesh(2.0f), cubeTex);
-//        cube.setPosition(0, 1, 0);
-//        cube.setCollidable(false); // куб твёрдый
-//        ctx.getEngine().root.addChild(cube);
-
-
+        // === Текстуры ===
         int groundTex = assetManager.loadTexture("texture/ground1.png", true);
-        GameObjectNode ground = new GameObjectNode(createGround(200, groundTex, 1000).getMesh(), groundTex);
-        ctx.getEngine().root.addChild(ground);
-
-//        int count = 20;
-//        float areaSize = 50.0f;
-//
-//        for (int i = 0; i < count; i++) {
-//            float x = (float) (Math.random() * areaSize - areaSize / 2);
-//            float z = (float) (Math.random() * areaSize - areaSize / 2);
-//
-//            GameObjectNode castle = createCastle("castle.obj", x, 0, z);
-//            castle.setScale(1f, (float) (Math.random() * 5f), 1f);
-//            castle.setColor((float) Math.random(), (float) Math.random(), (float) Math.random());
-//
-//            castle.setCollidable(true);
-//
-//            ctx.getEngine().root.addChild(castle);
-//        }
-
-
-        int mazeWidth = 30;
-        int mazeHeight = 30;
-        float cubeSize = 1.0f;
-
         int wallTex = assetManager.loadTexture("texture/wall.png", true);
 
-        boolean[][] maze = generateMaze(mazeWidth, mazeHeight);
+        // === Генерация многоэтажного лабиринта ===
+        generateMultiFloorMaze(
+                ctx,
+                10,   // ширина
+                10,   // глубина
+                6,    // этажи
+                1.0f, // размер куба
+                3.0f, // высота этажа
+                groundTex,
+                wallTex
+        );
+    }
 
-        for (int x = 0; x < mazeWidth; x++) {
-            for (int z = 0; z < mazeHeight; z++) {
-                if (maze[x][z]) { // стена
-                    GameObjectNode wall = new GameObjectNode(
+
+    private void generateMultiFloorMaze(
+            EngineContext ctx,
+            int mazeWidth,
+            int mazeDepth,
+            int mazeLevels,
+            float cubeSize,
+            float levelHeight,
+            int groundTex,
+            int wallTex
+    ) {
+        boolean[][][] maze = new boolean[mazeWidth][mazeDepth][mazeLevels];
+
+        for (int y = 0; y < mazeLevels; y++) {
+            boolean[][] level = generateMaze(mazeWidth, mazeDepth);
+
+            for (int x = 0; x < mazeWidth; x++) {
+                for (int z = 0; z < mazeDepth; z++) {
+                    maze[x][z][y] = level[x][z];
+                }
+            }
+
+            // создаём "лестницу" (проход между уровнями)
+            if (y < mazeLevels - 1) {
+                int stairX = 1 + (int) (Math.random() * (mazeWidth - 2));
+                int stairZ = 1 + (int) (Math.random() * (mazeDepth - 2));
+                maze[stairX][stairZ][y] = false;
+                maze[stairX][stairZ][y + 1] = false;
+            }
+
+            // === пол (платформы) ===
+            for (int x = 0; x < mazeWidth; x++) {
+                for (int z = 0; z < mazeDepth; z++) {
+
+                    // иногда убираем часть плит на верхних уровнях
+                    if (Math.random() < 0.15 && y > 0) continue;
+
+                    GameObjectNode tile = new GameObjectNode(
                             MeshFactory.createTexturedCubeMesh(cubeSize),
-                            wallTex
+                            groundTex
                     );
-                    wall.setPosition(
+
+                    // случайное смещение по высоте (±0.25)
+                    float yOffset = (float) (Math.random() * 0.5f - 0.25f);
+
+                    tile.setPosition(
                             x * cubeSize - mazeWidth * cubeSize / 2,
-                            cubeSize / 2,
-                            z * cubeSize - mazeHeight * cubeSize / 2
+                            y * levelHeight - (cubeSize * 0.1f) + yOffset,
+                            z * cubeSize - mazeDepth * cubeSize / 2
                     );
 
-                    // случайная высота
-                    float height = 1.0f + (float) (Math.random() * 2.0f);
-                    wall.setScale(1.0f, height, 1.0f);
+                    // наклон плитки (±5 градусов)
+                    float tiltX = (float) (Math.random() * 10f - 5f);
+                    float tiltZ = (float) (Math.random() * 10f - 5f);
+                    tile.getRotation().x = tiltX;
+                    tile.getRotation().z = tiltZ;
 
-                    // случайный цвет
-                    //wall.setColor((float) Math.random(), (float) Math.random(), (float) Math.random());
+                    // тонкая платформа
+                    tile.setScale(1.0f, 0.2f, 1.0f);
 
-                    ctx.getEngine().root.addChild(wall);
+                    tile.setCollidable(true);
+                    ctx.getEngine().root.addChild(tile);
+                }
+            }
+        }
+
+        // === стены ===
+        for (int y = 0; y < mazeLevels; y++) {
+            for (int x = 0; x < mazeWidth; x++) {
+                for (int z = 0; z < mazeDepth; z++) {
+                    if (maze[x][z][y]) {
+                        GameObjectNode wall = new GameObjectNode(
+                                MeshFactory.createTexturedCubeMesh(cubeSize),
+                                wallTex
+                        );
+
+                        wall.setPosition(
+                                x * cubeSize - mazeWidth * cubeSize / 2,
+                                cubeSize / 2 + y * levelHeight,
+                                z * cubeSize - mazeDepth * cubeSize / 2
+                        );
+
+                        float height = 2.0f + (float) (Math.random() * 1.5f);
+                        wall.setScale(1.0f, height, 1.0f);
+
+                        ctx.getEngine().root.addChild(wall);
+                    }
                 }
             }
         }
     }
+
+
+
+
+
 
     private boolean[][] generateMaze(int width, int height) {
         boolean[][] maze = new boolean[width][height];
