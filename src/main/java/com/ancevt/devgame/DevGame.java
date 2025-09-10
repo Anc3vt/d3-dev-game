@@ -65,9 +65,9 @@ public class DevGame implements Application {
         // === Генерация многоэтажного лабиринта ===
         generateMultiFloorMaze(
                 ctx,
-                10,   // ширина
-                10,   // глубина
-                6,    // этажи
+                6,   // ширина
+                7,   // глубина
+                4,    // этажи
                 1.0f, // размер куба
                 3.0f, // высота этажа
                 groundTex,
