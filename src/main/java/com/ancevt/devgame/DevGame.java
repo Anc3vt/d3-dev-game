@@ -2,14 +2,19 @@ package com.ancevt.devgame;
 
 import com.ancevt.d3.engine.asset.AssetManager;
 import com.ancevt.d3.engine.asset.OBJModel;
+import com.ancevt.d3.engine.asset.TextureLoader;
 import com.ancevt.d3.engine.core.Application;
 import com.ancevt.d3.engine.core.Engine;
 import com.ancevt.d3.engine.core.EngineContext;
 import com.ancevt.d3.engine.core.LaunchConfig;
-import com.ancevt.d3.engine.scene.GameObject;
-import com.ancevt.d3.engine.scene.GameObjectNode;
-import com.ancevt.d3.engine.scene.Mesh;
-import com.ancevt.d3.engine.scene.MeshFactory;
+import com.ancevt.d3.engine.render.ShaderProgram;
+import com.ancevt.d3.engine.scene.*;
+import com.ancevt.d3.engine.util.TextLoader;
+
+import static org.lwjgl.opengl.GL20.glGetUniformLocation;
+import static org.lwjgl.opengl.GL20.glUniform1i;
+import static org.lwjgl.opengl.GL20C.GL_FRAGMENT_SHADER;
+import static org.lwjgl.opengl.GL20C.GL_VERTEX_SHADER;
 
 public class DevGame implements Application {
 
@@ -32,7 +37,6 @@ public class DevGame implements Application {
 
         AssetManager assetManager = ctx.getAssetManager();
 
-        // --- Skybox ---
         String[] faces = {
                 "skybox/right.png",
                 "skybox/left.png",
@@ -41,6 +45,20 @@ public class DevGame implements Application {
                 "skybox/front.png",
                 "skybox/back.png"
         };
+        int cubemapTex = TextureLoader.loadCubemap(faces);
+
+        ShaderProgram skyboxShader = new ShaderProgram();
+        skyboxShader.attachShader(TextLoader.load("shaders/skybox.vert"), GL_VERTEX_SHADER);
+        skyboxShader.attachShader(TextLoader.load("shaders/skybox.frag"), GL_FRAGMENT_SHADER);
+        skyboxShader.link();
+
+        skyboxShader.use();
+        int loc = glGetUniformLocation(skyboxShader.getId(), "skybox");
+        glUniform1i(loc, 0);
+
+        Skybox skybox = new Skybox(cubemapTex, skyboxShader);
+
+        Engine.skybox = skybox;
 
 
         int cubeTex = assetManager.loadTexture("texture/wall.png", true);
