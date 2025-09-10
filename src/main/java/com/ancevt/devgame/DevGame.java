@@ -4,12 +4,12 @@ import com.ancevt.d3.engine.asset.OBJLoader;
 import com.ancevt.d3.engine.asset.OBJModel;
 import com.ancevt.d3.engine.asset.TextureLoader;
 import com.ancevt.d3.engine.core.Application;
-import com.ancevt.d3.engine.core.LaunchConfig;
 import com.ancevt.d3.engine.core.Engine;
 import com.ancevt.d3.engine.core.EngineContext;
+import com.ancevt.d3.engine.core.LaunchConfig;
 import com.ancevt.d3.engine.scene.GameObject;
+import com.ancevt.d3.engine.scene.GameObjectNode;
 import com.ancevt.d3.engine.scene.Mesh;
-import com.ancevt.d3.engine.scene.MyGameObject;
 
 public class DevGame implements Application {
 
@@ -31,51 +31,51 @@ public class DevGame implements Application {
     public void init(EngineContext ctx) {
         this.ctx = ctx;
 
-        // === создаём пол ===
-        int groundTex = TextureLoader.loadTextureFromResources("texture/ground1.png");
-        GameObject ground = createGround(200, groundTex); // плоскость 200x200
-        ctx.getEngine().objects.add(ground);
+        int groundTex = TextureLoader.loadTextureFromResources("texture/ground1.png", true);
+        GameObjectNode ground = new GameObjectNode(createGround(200, groundTex, 1000).getMesh(), groundTex);
+        ctx.getEngine().root.addChild(ground);
 
-        // === создаём замки ===
         int count = 30;
-        float areaSize = 20.0f;
+        float areaSize = 10.0f;
 
         for (int i = 0; i < count; i++) {
             float x = (float) (Math.random() * areaSize - areaSize / 2);
             float z = (float) (Math.random() * areaSize - areaSize / 2);
-            GameObject castle = createCastle("castle.obj", x, (float) (Math.random() * 5), z);
-            castle.setScale(1f, (float) (Math.random() + 0.5f), 1f);
-            castle.setColor((float) Math.random(), (float) Math.random(), (float) Math.random());
 
+            GameObjectNode castle = createCastle("castle.obj", x, 0, z);
+            castle.setScale(1f, (float) (Math.random() * 5f), 1f);
+            //castle.setColor((float) Math.random(), (float) Math.random(), (float) Math.random());
+
+            ctx.getEngine().root.addChild(castle);
         }
     }
 
-    public static GameObject createGround(float size, int textureId) {
-        // Вершины квадрата (две треугольные плоскости)
-        float[] vertices = {
-                // posX, posY, posZ,   u, v,   nx, ny, nz
-                -size, 0, -size, 0, 0, 0, 1, 0,
-                size, 0, -size, 1, 0, 0, 1, 0,
-                size, 0, size, 1, 1, 0, 1, 0,
 
-                -size, 0, -size, 0, 0, 0, 1, 0,
-                size, 0, size, 1, 1, 0, 1, 0,
-                -size, 0, size, 0, 1, 0, 1, 0,
+    public static GameObject createGround(float size, int textureId, float repeat) {
+        float[] vertices = {
+                -size, 0, -size, 0,      0,       0, 1, 0,
+                size, 0, -size, repeat, 0,       0, 1, 0,
+                size, 0,  size, repeat, repeat,  0, 1, 0,
+
+                -size, 0, -size, 0,      0,       0, 1, 0,
+                size, 0,  size, repeat, repeat,  0, 1, 0,
+                -size, 0,  size, 0,      repeat,  0, 1, 0,
         };
 
         Mesh mesh = new Mesh(vertices, 8);
         return new GameObject(mesh, textureId);
     }
 
-    private GameObject createCastle(String filename, float x, float y, float z) {
-        OBJModel obj1 = OBJLoader.load("models/" + filename);
-        int tex1 = (obj1.textureFile != null)
-                ? TextureLoader.loadTextureFromResources("models/" + obj1.textureFile)
-                : TextureLoader.loadTextureFromResources("texture/wall.png");
 
-        GameObject go1 = new MyGameObject(obj1.mesh, tex1);
+    private GameObjectNode createCastle(String filename, float x, float y, float z) {
+        OBJModel obj1 = OBJLoader.load("models/" + filename);
+        int tex1 = TextureLoader.loadTextureFromResources("texture/wall.png", true);
+        GameObjectNode go1 = new GameObjectNode(obj1.mesh, tex1);
         go1.setPosition(x, y, z);
-        ctx.getEngine().objects.add(go1);
+
+        // 👇 натягиваем текстуру 5х5 раз
+        go1.setTextureRepeat(5, 5);
+
         return go1;
     }
 
