@@ -68,11 +68,11 @@ public class DevGame implements Application {
         // === Генерация многоэтажного лабиринта ===
         generateMultiFloorMaze(
                 ctx,
-                10,   // ширина
-                7,   // глубина
+                5,   // ширина
+                5,   // глубина
                 5,    // этажи
-                1.0f, // размер куба
-                1.5f, // высота этажа
+                3f, // размер куба
+                3.1f, // высота этажа
                 groundTex,
                 wallTex
         );
@@ -129,8 +129,33 @@ public class DevGame implements Application {
                     // === стена ===
                     if (maze[x][z][y]) {
                         Mesh cubeMesh = MeshFactory.createTexturedCubeMesh(cubeSize);
-                        wallBuilder.addMesh(cubeMesh, posX, posY + cubeSize / 2, posZ);
+                        GameObjectNode wallNode = new GameObjectNode(cubeMesh, wallTex);
 
+                        // базовая позиция
+                        float offsetX = posX;
+                        float offsetY = posY + cubeSize / 2;
+                        float offsetZ = posZ;
+
+                        // шанс 10% на кривой куб
+                        if (Math.random() < 0.1) {
+                            // небольшие смещения по X/Z (±10% от размера куба)
+                            float randomOffsetX = (float) ((Math.random() - 0.5) * cubeSize * 0.2f);
+                            float randomOffsetZ = (float) ((Math.random() - 0.5) * cubeSize * 0.2f);
+
+                            // наклон до ±5 градусов
+                            float randomRotX = (float) ((Math.random() - 0.5) * 10.0);
+                            float randomRotZ = (float) ((Math.random() - 0.5) * 10.0);
+
+                            wallNode.setPosition(offsetX + randomOffsetX, offsetY, offsetZ + randomOffsetZ);
+                            wallNode.setRotation(randomRotX, 0, randomRotZ);
+                        } else {
+                            // обычный ровный куб
+                            wallNode.setPosition(offsetX, offsetY, offsetZ);
+                        }
+
+                        ctx.getEngine().root.addChild(wallNode);
+
+                        // коллайдер всегда прямой куб
                         Vector3f min = new Vector3f(
                                 posX - cubeSize / 2,
                                 posY,
@@ -144,24 +169,46 @@ public class DevGame implements Application {
                         wallColliders.add(new AABB(min, max));
                     }
 
+
+
                     // === пол ===
                     if (Math.random() > holeChance) {
                         float thickness = cubeSize * 0.1f;
                         Mesh tileMesh = MeshFactory.createFloorTileMesh(cubeSize, thickness);
-                        groundBuilder.addMesh(tileMesh, posX, posY - thickness / 2, posZ);
+                        GameObjectNode tileNode = new GameObjectNode(tileMesh, groundTex);
 
+                        // базовая позиция
+                        float offsetX = posX;
+                        float offsetY = posY - thickness / 2;
+                        float offsetZ = posZ;
+
+                        // небольшие смещения по Y
+                        float randomYOffset = (float) ((Math.random() - 0.5) * cubeSize * 0.1f);
+                        offsetY += randomYOffset;
+
+                        // случайные наклоны (до ±5°)
+                        float randomRotX = (float) ((Math.random() - 0.5) * 10.0);
+                        float randomRotZ = (float) ((Math.random() - 0.5) * 10.0);
+
+                        tileNode.setPosition(offsetX, offsetY, offsetZ);
+                        tileNode.setRotation(randomRotX, 0, randomRotZ);
+
+                        ctx.getEngine().root.addChild(tileNode);
+
+                        // коллайдеры — под плитку как будто она всё равно плоская
                         Vector3f min = new Vector3f(
                                 posX - cubeSize / 2,
-                                posY - thickness,
+                                offsetY - thickness,
                                 posZ - cubeSize / 2
                         );
                         Vector3f max = new Vector3f(
                                 posX + cubeSize / 2,
-                                posY,
+                                offsetY,
                                 posZ + cubeSize / 2
                         );
                         groundColliders.add(new AABB(min, max));
                     }
+
                 }
             }
         }
