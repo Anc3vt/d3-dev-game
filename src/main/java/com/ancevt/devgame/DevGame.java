@@ -10,6 +10,9 @@ import com.ancevt.d3.engine.core.LaunchConfig;
 import com.ancevt.d3.engine.render.ShaderProgram;
 import com.ancevt.d3.engine.scene.*;
 import com.ancevt.d3.engine.util.TextLoader;
+import org.joml.Vector3f;
+
+import java.util.List;
 
 import static org.lwjgl.opengl.GL20.glGetUniformLocation;
 import static org.lwjgl.opengl.GL20.glUniform1i;
@@ -65,11 +68,11 @@ public class DevGame implements Application {
         // === Генерация многоэтажного лабиринта ===
         generateMultiFloorMaze(
                 ctx,
-                6,   // ширина
+                10,   // ширина
                 7,   // глубина
-                4,    // этажи
+                5,    // этажи
                 1.0f, // размер куба
-                3.0f, // высота этажа
+                1.5f, // высота этажа
                 groundTex,
                 wallTex
         );
@@ -88,6 +91,7 @@ public class DevGame implements Application {
     ) {
         boolean[][][] maze = new boolean[mazeWidth][mazeDepth][mazeLevels];
 
+        // генерируем этажи
         for (int y = 0; y < mazeLevels; y++) {
             boolean[][] level = generateMaze(mazeWidth, mazeDepth);
 
@@ -97,75 +101,84 @@ public class DevGame implements Application {
                 }
             }
 
-            // создаём "лестницу" (проход между уровнями)
+            // лестница между этажами (обеспечиваем проход вниз/вверх)
             if (y < mazeLevels - 1) {
                 int stairX = 1 + (int) (Math.random() * (mazeWidth - 2));
                 int stairZ = 1 + (int) (Math.random() * (mazeDepth - 2));
                 maze[stairX][stairZ][y] = false;
                 maze[stairX][stairZ][y + 1] = false;
             }
-
-            // === пол (платформы) ===
-            for (int x = 0; x < mazeWidth; x++) {
-                for (int z = 0; z < mazeDepth; z++) {
-
-                    // иногда убираем часть плит на верхних уровнях
-                    if (Math.random() < 0.15 && y > 0) continue;
-
-                    GameObjectNode tile = new GameObjectNode(
-                            MeshFactory.createTexturedCubeMesh(cubeSize),
-                            groundTex
-                    );
-
-                    // случайное смещение по высоте (±0.25)
-                    float yOffset = (float) (Math.random() * 0.5f - 0.25f);
-
-                    tile.setPosition(
-                            x * cubeSize - mazeWidth * cubeSize / 2,
-                            y * levelHeight - (cubeSize * 0.1f) + yOffset,
-                            z * cubeSize - mazeDepth * cubeSize / 2
-                    );
-
-                    // наклон плитки (±5 градусов)
-                    float tiltX = (float) (Math.random() * 10f - 5f);
-                    float tiltZ = (float) (Math.random() * 10f - 5f);
-                    tile.getRotation().x = tiltX;
-                    tile.getRotation().z = tiltZ;
-
-                    // тонкая платформа
-                    tile.setScale(1.0f, 0.2f, 1.0f);
-
-                    tile.setCollidable(true);
-                    ctx.getEngine().root.addChild(tile);
-                }
-            }
         }
 
-        // === стены ===
+        MeshBuilder wallBuilder = new MeshBuilder(8);
+        MeshBuilder groundBuilder = new MeshBuilder(8);
+
+        List<AABB> wallColliders = new java.util.ArrayList<>();
+        List<AABB> groundColliders = new java.util.ArrayList<>();
+
+        float holeChance = 0.3f; // шанс дырки
+
         for (int y = 0; y < mazeLevels; y++) {
             for (int x = 0; x < mazeWidth; x++) {
                 for (int z = 0; z < mazeDepth; z++) {
+
+                    float posX = x * cubeSize - mazeWidth * cubeSize / 2;
+                    float posY = y * levelHeight;
+                    float posZ = z * cubeSize - mazeDepth * cubeSize / 2;
+
+                    // === стена ===
                     if (maze[x][z][y]) {
-                        GameObjectNode wall = new GameObjectNode(
-                                MeshFactory.createTexturedCubeMesh(cubeSize),
-                                wallTex
+                        Mesh cubeMesh = MeshFactory.createTexturedCubeMesh(cubeSize);
+                        wallBuilder.addMesh(cubeMesh, posX, posY + cubeSize / 2, posZ);
+
+                        Vector3f min = new Vector3f(
+                                posX - cubeSize / 2,
+                                posY,
+                                posZ - cubeSize / 2
                         );
-
-                        wall.setPosition(
-                                x * cubeSize - mazeWidth * cubeSize / 2,
-                                cubeSize / 2 + y * levelHeight,
-                                z * cubeSize - mazeDepth * cubeSize / 2
+                        Vector3f max = new Vector3f(
+                                posX + cubeSize / 2,
+                                posY + cubeSize,
+                                posZ + cubeSize / 2
                         );
+                        wallColliders.add(new AABB(min, max));
+                    }
 
-                        float height = 2.0f + (float) (Math.random() * 1.5f);
-                        wall.setScale(1.0f, height, 1.0f);
+                    // === пол ===
+                    if (Math.random() > holeChance) {
+                        float thickness = cubeSize * 0.1f;
+                        Mesh tileMesh = MeshFactory.createFloorTileMesh(cubeSize, thickness);
+                        groundBuilder.addMesh(tileMesh, posX, posY - thickness / 2, posZ);
 
-                        ctx.getEngine().root.addChild(wall);
+                        Vector3f min = new Vector3f(
+                                posX - cubeSize / 2,
+                                posY - thickness,
+                                posZ - cubeSize / 2
+                        );
+                        Vector3f max = new Vector3f(
+                                posX + cubeSize / 2,
+                                posY,
+                                posZ + cubeSize / 2
+                        );
+                        groundColliders.add(new AABB(min, max));
                     }
                 }
             }
         }
+
+        Mesh wallMesh = wallBuilder.build();
+        Mesh groundMesh = groundBuilder.build();
+
+// стены со своими коллизиями
+        MazeNode mazeNode = new MazeNode(wallMesh, wallTex, wallColliders);
+// пол со своими коллизиями
+        MazeNode groundNode = new MazeNode(groundMesh, groundTex, groundColliders);
+
+        ctx.getEngine().root.addChild(groundNode);
+        ctx.getEngine().root.addChild(mazeNode);
     }
+
+
 
 
 
